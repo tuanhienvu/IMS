@@ -1,11 +1,11 @@
-import AppConstants, { ResponseCode } from '@/constants/appConstants';
+import { ResponseCode } from '@/constants/appConstants';
 import { db } from '@/libs/DB';
 import { discountGroup, userRoles, users } from '@/models/Schema';
-import { clerkClient } from '@clerk/nextjs/server';
-import { count, eq, inArray, like, or } from 'drizzle-orm';
+import { count, eq, like, or } from 'drizzle-orm';
 import { type NextRequest, NextResponse } from 'next/server';
 import { responseWithError } from '../serviceHelpers';
 
+// Get all users with pagination and search
 export async function getUsers(request: NextRequest) {
   try {
     const page = Number(request.nextUrl.searchParams.get('page')) || 1;
@@ -38,6 +38,7 @@ export async function getUsers(request: NextRequest) {
   }
 }
 
+// Get user details
 export async function getUserDetail(request: NextRequest) {
   try {
     const userId = Number(request.nextUrl.searchParams.get('id'));
@@ -46,14 +47,7 @@ export async function getUserDetail(request: NextRequest) {
     }
 
     const user = await db
-      .select({
-        id: users.userId,
-        name: users.userName,
-        email: users.userEmail,
-        role: userRoles.userRoleId,
-        status: users.statusId,
-        discountName: discountGroup.farmName,
-      })
+      .select()
       .from(users)
       .leftJoin(userRoles, eq(users.userId, userRoles.userId))
       .leftJoin(discountGroup, eq(users.departmentId, discountGroup.farmId))
@@ -69,68 +63,42 @@ export async function getUserDetail(request: NextRequest) {
   }
 }
 
-export async function syncUsers() {
+// Create a new user
+export async function createUser(request: NextRequest) {
   try {
-    const clerkUsers = await clerkClient.users.getUserList();
-    const userIds = clerkUsers.data.map(u => u.id);
-
-    const existingUsers = await db
-      .select({ externalId: users.userId })
-      .from(users)
-      .where(inArray(users.userId, userIds));
-
-    const existingIds = new Set(existingUsers.map(u => u.externalId));
-    const newUsers = clerkUsers.data.filter(u => !existingIds.has(u.id));
-
-    if (newUsers.length) {
-      await db.insert(users).values(
-        newUsers.map(user => ({
-          userId: user.id,
-          userName: `${user.firstName} ${user.lastName}`,
-          userEmail: user.emailAddresses[0]?.emailAddress || '',
-          phoneNumber: user.phoneNumbers[0]?.phoneNumber || '',
-          statusId: AppConstants.UserStatus.INACTIVE,
-          note: '',
-        })),
-      );
-    }
-
-    return newUsers.length;
+    const data = await request.json();
+    const newUser = await db.insert(users).values(data).returning();
+    return NextResponse.json({ status: 'success', user: newUser[0] });
   } catch (error: any) {
-    console.error(error);
-    return 0;
+    return responseWithError(error.message, ResponseCode.Err_500);
   }
 }
 
-export async function editActiveUser(request: NextRequest) {
+// Update an existing user
+export async function updateUser(request: NextRequest) {
   try {
     const data = await request.json();
     if (!data.id) {
       return responseWithError('User ID is required', ResponseCode.Err_400);
     }
 
-    await db
-      .update(users)
-      .set({
-        statusId: data.status,
-        note: data.note,
-        userName: data.name,
-        userEmail: data.email,
-        phoneNumber: data.phoneNumber,
-        departmentId: data.departmentId,
-      })
-      .where(eq(users.userId, data.id));
+    await db.update(users).set(data).where(eq(users.userId, data.id));
+    return NextResponse.json({ status: 'success', message: 'User updated successfully' });
+  } catch (error: any) {
+    return responseWithError(error.message, ResponseCode.Err_500);
+  }
+}
 
-    const updatedUser = await db
-      .select()
-      .from(users)
-      .where(eq(users.userId, data.id));
-
-    if (!updatedUser.length) {
-      return responseWithError('User not found after update', ResponseCode.Err_404);
+// Delete a user
+export async function deleteUser(request: NextRequest) {
+  try {
+    const userId = Number(request.nextUrl.searchParams.get('id'));
+    if (!userId) {
+      return responseWithError('Invalid user ID', ResponseCode.Err_400);
     }
 
-    return NextResponse.json({ status: 'success', user: updatedUser[0] });
+    await db.delete(users).where(eq(users.userId, userId));
+    return NextResponse.json({ status: 'success', message: 'User deleted successfully' });
   } catch (error: any) {
     return responseWithError(error.message, ResponseCode.Err_500);
   }
