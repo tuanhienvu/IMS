@@ -27,10 +27,9 @@ export const users = pgTable('users', {
   userEmail: varchar('user_email', { length: 50 }).unique(),
   departmentId: integer('department_id'),
   note: varchar('note', { length: 150 }),
-  statusId: integer('status_id'),
-  createdDate: timestamp('created_date').defaultNow(),
+  statusId: integer('status_id').default(1).notNull(), // Mặc định là 1 (Actived)
+  createdDate: timestamp('created_date').defaultNow().notNull(), // Không cho phép update
   modifiedDate: timestamp('modified_date')
-    .defaultNow()
     .$onUpdate(() => new Date()),
 });
 
@@ -60,8 +59,8 @@ export const companyInfo = pgTable('company_info', {
   square: integer('square'),
   actualSquare: integer('actual_square'),
   picture: varchar('picture', { length: 50 }),
-  statusId: integer('status_id'),
-  createdDate: timestamp('created_date').defaultNow(),
+  statusId: integer('status_id').default(1).notNull(),
+  createdDate: timestamp('created_date').defaultNow().notNull(),
   modifiedDate: timestamp('modified_date')
     .defaultNow()
     .$onUpdate(() => new Date()),
