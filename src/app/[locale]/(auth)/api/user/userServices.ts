@@ -102,16 +102,16 @@ export async function createUser(request: NextRequest) {
 export async function updateUser(request: NextRequest) {
   try {
     const data = await request.json();
-    if (!data.id) {
-      return responseWithError('User ID is required', ResponseCode.Err_400);
+    if (!data.userId) {
+      return responseWithError('userId is required', ResponseCode.Err_400);
     }
 
-    const existingUser = await db.select().from(users).where(eq(users.userId, data.id));
+    const existingUser = await db.select().from(users).where(eq(users.userId, data.userId));
     if (!existingUser.length) {
       return responseWithError('User not found', ResponseCode.Err_204);
     }
 
-    await db.update(users).set(data).where(eq(users.userId, data.id));
+    await db.update(users).set(data).where(eq(users.userId, data.userId));
     return NextResponse.json({ status: 'success', message: 'User updated successfully' });
   } catch (error: any) {
     return responseWithError(error.message, ResponseCode.Err_500);
@@ -122,10 +122,10 @@ export async function updateUser(request: NextRequest) {
 export async function deleteUser(request: NextRequest) {
   try {
     const data = await request.json();
-    const userId = Number(data.id);
+    const userId = Number(data.userId);
 
     if (!userId) {
-      return responseWithError('User ID is required', ResponseCode.Err_400);
+      return responseWithError('UserID is required', ResponseCode.Err_400);
     }
 
     const existingUser = await db.select().from(users).where(eq(users.userId, userId));
