@@ -68,6 +68,7 @@ export async function getUserDetail(request: NextRequest) {
     return responseWithError(error.message, ResponseCode.Err_500);
   }
 }
+
 // Create a new user
 export async function createUser(request: NextRequest) {
   try {
@@ -120,21 +121,21 @@ export async function updateUser(request: NextRequest) {
 // Delete a user
 export async function deleteUser(request: NextRequest) {
   try {
-    const urlParts = request.nextUrl.pathname.split('/');
-    const userId = Number(urlParts[urlParts.length - 1]);
+    const data = await request.json();
+    const userId = Number(data.id);
 
     if (!userId) {
-      return responseWithError('Invalid user ID', ResponseCode.Err_400);
+      return responseWithError('User ID is required', ResponseCode.Err_400);
     }
 
-    const deletedUser = await db.delete(users).where(eq(users.userId, userId)).returning();
-    if (!deletedUser.length) {
+    const existingUser = await db.select().from(users).where(eq(users.userId, userId));
+    if (!existingUser.length) {
       return responseWithError('User not found', ResponseCode.Err_204);
     }
 
+    await db.delete(users).where(eq(users.userId, userId));
     return NextResponse.json({ status: 'success', message: 'User deleted successfully' });
   } catch (error: any) {
-    console.error('Delete user error:', error);
     return responseWithError(error.message, ResponseCode.Err_500);
   }
 }
